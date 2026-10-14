@@ -39,3 +39,8 @@ curl -s -H 'Accept: application/json, text/event-stream' -H 'Content-Type: appli
    personalizado → `https://mcp-poc.xplaya.com/mcp`.
 2. En la app del teléfono, modo de voz: «¿Está viva la papelería?» y «Repite: hoy vendimos cien
    copias». Lo que se busca es que **lo diga en voz alta**.
+
+## Siguiente experimento
+
+[Control remoto por voz de Claude Code](docs/control-remoto-por-voz.md): hablarle desde el teléfono
+a la sesión de Claude Code de la papelería, con OAuth de Cloudflare Access y un canal de Claude Code.
