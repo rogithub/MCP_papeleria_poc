@@ -122,4 +122,21 @@ gana la primera respuesta.
 
 ## Resultados
 
-*(Pendiente.)*
+### Paso A — los canales en la computadora de la papelería (2026-10-14)
+
+**Funcionan.** Con `fakechat`, el canal de demostración oficial, un mensaje escrito en su página
+entró a la sesión de Claude Code de `dayana` y la respuesta regresó al chat en unos 11 segundos. La
+respuesta usó su `CLAUDE.md`, en el tono de siempre: es la misma sesión, con su contexto.
+
+Lo que salió en el camino:
+- Claude Code 2.1.300 en la computadora; Bun 1.4.3 instalado en `~/.bun` de `dayana` solo para esta
+  prueba (para quitarlo: borrar `~/.bun` y su línea en `~/.zshrc`).
+- El plugin se instala como `fakechat@anthropic-plugin-directory`, no `@claude-plugins-official`
+  como dice la documentación, y por eso `--channels` lo rechaza («not on the approved channels
+  allowlist»). Con `--dangerously-load-development-channels plugin:fakechat@anthropic-plugin-directory`
+  sí entra. El canal propio usará esa bandera de todos modos.
+- La primera vez, el servidor del canal arrancó desconectado (nadie escuchaba en su puerto) y hubo
+  que reconectarlo desde `/mcp`. Vigilar si se repite con el canal propio.
+- Probado por ssh, con `ssh -L 8787:localhost:8787` para ver la página desde otra computadora.
+- La respuesta fue larga, con listas y emojis: para la voz, las instrucciones del canal deben pedir
+  respuestas cortas.
