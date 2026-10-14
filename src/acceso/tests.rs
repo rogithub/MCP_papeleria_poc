@@ -131,6 +131,10 @@ async fn rechaza_un_jwt_con_una_llave_que_no_conoce() {
 fn app() -> Router {
     let protected = Router::new()
         .route("/mcp", get(|| async { "herramientas" }))
+        .route(
+            "/quien",
+            get(|axum::Extension(Correo(correo)): axum::Extension<Correo>| async { correo }),
+        )
         .layer(axum::middleware::from_fn_with_state(
             Arc::new(access()),
             require_access,
@@ -166,4 +170,19 @@ async fn mcp_con_el_jwt_de_access_pasa() {
         .unwrap();
 
     assert_eq!(status(request).await, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn el_correo_de_quien_entro_llega_a_las_herramientas() {
+    let request = Request::get("/quien")
+        .header(HEADER, sign(&claims(), LLAVE))
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app().oneshot(request).await.unwrap();
+    let body = axum::body::to_bytes(response.into_body(), 1024)
+        .await
+        .unwrap();
+
+    assert_eq!(body, CORREO);
 }

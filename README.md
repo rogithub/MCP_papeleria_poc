@@ -11,7 +11,10 @@ pasa en `Cf-Access-Jwt-Assertion` (`src/acceso.rs`).
 ## Herramientas
 
 - `prueba_de_vida`: «Estoy vivo. Son las 10:42 en la papelería. Te respondo desde el cluster purépecha.»
-- `eco(texto)`: repite lo que se le dice; prueba que los parámetros llegan bien por voz.
+- `mandar_mensaje(texto)` y `esperar_respuesta()`: el relevo hacia la sesión de Claude Code de la
+  papelería (ver [el experimento](docs/control-remoto-por-voz.md)). Esperan hasta 20 s y devuelven
+  la respuesta, una petición de permiso (se aprueba en la pantalla) o «sigue trabajando». Si el
+  canal de la computadora no ha preguntado en el último minuto: «la computadora está apagada».
 
 ## Cómo corre
 

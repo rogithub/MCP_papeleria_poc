@@ -1,13 +1,18 @@
-//! Prueba de vida de un conector MCP público (ver README.md). No toca ninguna base ni dato de la
-//! papelería: solo dice que está vivo y repite lo que le dicen. Solo responde a quien entró por
-//! Cloudflare Access (`acceso`).
+//! El relevo entre el Claude del teléfono y la sesión de Claude Code de la papelería (ver
+//! docs/control-remoto-por-voz.md). No toca ninguna base ni dato de la papelería: pasa mensajes por
+//! una fila en memoria (`fila`). Solo responde a quien entró por Cloudflare Access (`acceso`).
 
 mod acceso;
+mod fila;
 
 use std::sync::Arc;
+use std::time::Duration;
 
+use axum::http::request::Parts;
 use axum::{Router, routing::get};
 use chrono::Utc;
+use rmcp::ErrorData;
+use rmcp::handler::server::common::Extension;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::schemars::{self, JsonSchema};
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
@@ -18,14 +23,22 @@ use serde::Deserialize;
 /// La hora se dice en la de la papelería.
 const ZONA: chrono_tz::Tz = chrono_tz::America::Cancun;
 
+/// Lo que el teléfono espera a la computadora en cada llamada. Lo que aguante el modo de voz
+/// lo dice el experimento (pregunta 1 del documento).
+const ESPERA: Duration = Duration::from_secs(20);
+
 #[derive(Clone)]
-struct Papeleria;
+struct Papeleria {
+    fila: Arc<fila::Fila>,
+}
 
 #[derive(Deserialize, JsonSchema)]
-struct EcoParams {
-    /// Lo que hay que repetir, tal cual.
+struct MensajeParams {
+    /// Lo que dijo la persona, con sus palabras.
     texto: String,
 }
+
+const APAGADA: &str = "La computadora de la papelería está apagada: no le llegó nada.";
 
 #[tool_router(server_handler)]
 impl Papeleria {
@@ -38,11 +51,40 @@ impl Papeleria {
     }
 
     #[tool(
-        description = "Repite el texto que se le da, tal cual. Sirve para probar que los \
-                          parámetros llegan bien."
+        description = "Le pasa un mensaje a la sesión de Claude Code abierta en la computadora \
+                       de la papelería, la que tiene las impresoras, los pedidos y los archivos. \
+                       Pasa lo que dijo la persona, con sus palabras, sin resolverlo tú ni \
+                       agregarle nada. Espera hasta 20 segundos y devuelve lo que contestó la \
+                       computadora: dilo en voz alta, corto. Si dice que sigue trabajando, usa \
+                       esperar_respuesta. Si pide permiso, díselo a la persona: el permiso se da \
+                       en la pantalla de la computadora, tú no puedes darlo."
     )]
-    async fn eco(&self, Parameters(EcoParams { texto }): Parameters<EcoParams>) -> String {
-        format!("Me dijiste: «{texto}»")
+    async fn mandar_mensaje(
+        &self,
+        Extension(parts): Extension<Parts>,
+        Parameters(MensajeParams { texto }): Parameters<MensajeParams>,
+    ) -> Result<String, ErrorData> {
+        let acceso::Correo(de) = parts
+            .extensions
+            .get::<acceso::Correo>()
+            .cloned()
+            .ok_or_else(|| ErrorData::internal_error("no se sabe quién habla", None))?;
+        if !self.fila.mandar(fila::Mensaje { de, texto }).await {
+            return Ok(APAGADA.into());
+        }
+        Ok(fila::para_decir(&self.fila.esperar_salida(ESPERA).await))
+    }
+
+    #[tool(
+        description = "Espera hasta 20 segundos a que la computadora de la papelería conteste lo \
+                       último que se le mandó; no manda nada nuevo. Úsala cuando la respuesta \
+                       diga que sigue trabajando. Lo que devuelva, dilo en voz alta, corto."
+    )]
+    async fn esperar_respuesta(&self) -> String {
+        if !self.fila.prendida().await {
+            return APAGADA.into();
+        }
+        fila::para_decir(&self.fila.esperar_salida(ESPERA).await)
     }
 }
 
@@ -90,8 +132,9 @@ async fn main() -> std::io::Result<()> {
         .with_legacy_session_mode(false)
         .with_json_response(true)
         .with_allowed_hosts(allowed_hosts.clone());
+    let fila = Arc::new(fila::Fila::default());
     let mcp = StreamableHttpService::new(
-        || Ok(Papeleria),
+        move || Ok(Papeleria { fila: fila.clone() }),
         Arc::new(LocalSessionManager::default()),
         config,
     );

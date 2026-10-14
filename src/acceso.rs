@@ -39,6 +39,11 @@ pub enum Rejection {
     Invalid(String),
 }
 
+/// El correo de quien entró, en las extensiones de la petición: así el mensaje que llega a la
+/// sesión dice quién habló.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Correo(pub String);
+
 #[derive(Deserialize)]
 struct Claims {
     email: String,
@@ -143,7 +148,7 @@ fn verify_token(
 /// Capa para `/mcp`: sin un JWT válido de Access, 401 y no llega a las herramientas.
 pub async fn require_access(
     State(access): State<Arc<Access>>,
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Response {
     let token = request
@@ -157,6 +162,7 @@ pub async fn require_access(
     match result {
         Ok(correo) => {
             tracing::info!(%correo, "petición por Access");
+            request.extensions_mut().insert(Correo(correo));
             next.run(request).await
         }
         Err(rejection) => {

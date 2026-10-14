@@ -40,8 +40,9 @@ teléfono (voz) ── Claude (nube) ── Cloudflare Access ── relevo (k3s
 
 1. Ella dice: «imprime el PDF de Juan, dos copias a color». El Claude del teléfono llama a una
    herramienta del relevo con ese texto.
-2. El relevo lo guarda; el canal lo recoge y lo mete a la sesión. En pantalla aparece como mensaje
-   entrante.
+2. El relevo lo guarda con el correo de quien habló (el que dio Access); el canal lo recoge y lo
+   mete a la sesión con ese correo en el `meta`. En pantalla aparece como mensaje entrante, y
+   Claude Code sabe si le habla Dayana u otra persona de la política.
 3. Claude Code trabaja como siempre. Si pide permiso, la petición sale por el canal **y** aparece en
    la pantalla.
 4. El relevo le devuelve al teléfono lo que haya: la respuesta, «pide permiso para…» o «sigue
@@ -53,6 +54,14 @@ teléfono (voz) ── Claude (nube) ── Cloudflare Access ── relevo (k3s
 
 Si la computadora no ha preguntado en el último minuto, el relevo contesta que está apagada: fuera
 de horario no tiene corriente, así que no hace falta programar el horario.
+
+### Límites conocidos
+
+- **Una sola conversación.** El relevo tiene una sola fila: si dos personas hablan al mismo tiempo,
+  los mensajes entran a la misma sesión y las respuestas se mezclan; cada teléfono recibe lo que
+  haya en la fila cuando pregunta, sea la respuesta suya o la de la otra persona. Para el
+  experimento está bien: se prueba con una persona a la vez.
+- **La fila está en memoria.** Si el pod se reinicia, lo pendiente se pierde.
 
 ## Quién aprueba
 

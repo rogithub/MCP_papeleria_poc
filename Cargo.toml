@@ -23,4 +23,5 @@ lto = "thin"
 
 [dev-dependencies]
 serde_json = "1"
+tokio = { version = "1", features = ["test-util"] }
 tower = { version = "0.5", features = ["util"] }
