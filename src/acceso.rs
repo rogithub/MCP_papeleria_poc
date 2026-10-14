@@ -4,6 +4,10 @@
 //! `Cf-Access-Jwt-Assertion`, un JWT firmado con las llaves del equipo. Aquí se revisa esa firma,
 //! que sea de esta aplicación (`aud`) y de este equipo (`iss`), y que no haya vencido: el NodePort
 //! se alcanza desde la LAN sin pasar por Cloudflare, así que no basta con que Access esté enfrente.
+//!
+//! Entran dos clases de identidad: las personas de la política (el JWT trae su `email`), que usan
+//! `/mcp`, y el canal de la computadora con su service token (trae `common_name`, el Client ID),
+//! que usa `/canal`. Ninguna puede entrar a lo de la otra.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -39,14 +43,20 @@ pub enum Rejection {
     Invalid(String),
 }
 
-/// El correo de quien entró, en las extensiones de la petición: así el mensaje que llega a la
-/// sesión dice quién habló.
+/// Quién entró, en las extensiones de la petición: así el mensaje que llega a la sesión dice
+/// quién habló.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Correo(pub String);
+pub enum Identidad {
+    /// Una persona de la política, con su correo.
+    Persona(String),
+    /// Un service token, con su Client ID.
+    Canal(String),
+}
 
 #[derive(Deserialize)]
 struct Claims {
-    email: String,
+    email: Option<String>,
+    common_name: Option<String>,
 }
 
 impl Access {
@@ -73,8 +83,7 @@ impl Access {
         }
     }
 
-    /// Devuelve el correo de quien entró por Access.
-    pub async fn verify(&self, token: &str) -> Result<String, Rejection> {
+    pub async fn verify(&self, token: &str) -> Result<Identidad, Rejection> {
         match self.verify_with_known_keys(token).await {
             Err(Rejection::UnknownKey) if self.refresh_if_due().await => {
                 self.verify_with_known_keys(token).await
@@ -83,7 +92,7 @@ impl Access {
         }
     }
 
-    async fn verify_with_known_keys(&self, token: &str) -> Result<String, Rejection> {
+    async fn verify_with_known_keys(&self, token: &str) -> Result<Identidad, Rejection> {
         verify_token(&*self.keys.read().await, &self.validation, token)
     }
 
@@ -134,18 +143,23 @@ fn verify_token(
     keys: &HashMap<String, DecodingKey>,
     validation: &Validation,
     token: &str,
-) -> Result<String, Rejection> {
+) -> Result<Identidad, Rejection> {
     let header = decode_header(token).map_err(|e| Rejection::Invalid(e.to_string()))?;
     let key = header
         .kid
         .and_then(|kid| keys.get(&kid))
         .ok_or(Rejection::UnknownKey)?;
-    decode::<Claims>(token, key, validation)
-        .map(|data| data.claims.email)
-        .map_err(|e| Rejection::Invalid(e.to_string()))
+    let claims = decode::<Claims>(token, key, validation)
+        .map_err(|e| Rejection::Invalid(e.to_string()))?
+        .claims;
+    match (claims.email, claims.common_name) {
+        (Some(correo), _) => Ok(Identidad::Persona(correo)),
+        (None, Some(client_id)) => Ok(Identidad::Canal(client_id)),
+        (None, None) => Err(Rejection::Invalid("sin email ni common_name".into())),
+    }
 }
 
-/// Capa para `/mcp`: sin un JWT válido de Access, 401 y no llega a las herramientas.
+/// Primera capa: sin un JWT válido de Access, 401 y no llega a nada.
 pub async fn require_access(
     State(access): State<Arc<Access>>,
     mut request: Request,
@@ -160,14 +174,40 @@ pub async fn require_access(
         None => Err(Rejection::MissingHeader),
     };
     match result {
-        Ok(correo) => {
-            tracing::info!(%correo, "petición por Access");
-            request.extensions_mut().insert(Correo(correo));
+        Ok(identidad) => {
+            tracing::info!(?identidad, "petición por Access");
+            request.extensions_mut().insert(identidad);
             next.run(request).await
         }
         Err(rejection) => {
             tracing::warn!(?rejection, "petición rechazada: no viene de Access");
             StatusCode::UNAUTHORIZED.into_response()
+        }
+    }
+}
+
+/// Capa para `/mcp`: solo personas; el service token del canal no usa las herramientas.
+pub async fn solo_personas(request: Request, next: Next) -> Response {
+    match request.extensions().get::<Identidad>() {
+        Some(Identidad::Persona(_)) => next.run(request).await,
+        otra => {
+            tracing::warn!(identidad = ?otra, "rechazada: /mcp es solo para personas");
+            StatusCode::FORBIDDEN.into_response()
+        }
+    }
+}
+
+/// Capa para `/canal`: solo el service token del canal (`client_id`), no otro ni una persona.
+pub async fn solo_el_canal(
+    State(client_id): State<Arc<str>>,
+    request: Request,
+    next: Next,
+) -> Response {
+    match request.extensions().get::<Identidad>() {
+        Some(Identidad::Canal(id)) if **id == *client_id => next.run(request).await,
+        otra => {
+            tracing::warn!(identidad = ?otra, "rechazada: /canal es solo para el canal");
+            StatusCode::FORBIDDEN.into_response()
         }
     }
 }

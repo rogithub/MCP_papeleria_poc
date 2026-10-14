@@ -16,12 +16,19 @@ pasa en `Cf-Access-Jwt-Assertion` (`src/acceso.rs`).
   la respuesta, una petición de permiso (se aprueba en la pantalla) o «sigue trabajando». Si el
   canal de la computadora no ha preguntado en el último minuto: «la computadora está apagada».
 
+Del lado de la computadora, el canal pregunta por rutas JSON simples (no MCP), con el service token
+de Access `canal-papeleria`: `GET /canal/mensajes` (espera hasta 25 s; cada mensaje trae `de`, el
+correo de quien habló, y `texto`), `POST /canal/respuesta {texto}` y
+`POST /canal/permiso {id, herramienta, descripcion}`. `/mcp` es solo para personas y `/canal`
+solo para ese service token (403 al revés).
+
 ## Cómo corre
 
 - Rust + [`rmcp`](https://crates.io/crates/rmcp) 3.5.1 (la misma que el MCP de imagina), Streamable
   HTTP en `/mcp`, sin sesiones y con respuestas JSON. `/healthz` para las sondas.
 - Variables: `ACCESS_TEAM_DOMAIN` (el emisor, `https://negrita.cloudflareaccess.com`) y
-  `ACCESS_AUD` (la «AUD tag» de la aplicación de Access), obligatorias: sin ellas, o si no puede
+  `ACCESS_AUD` (la «AUD tag» de la aplicación de Access) y `CANAL_CLIENT_ID` (el Client ID del
+  service token del canal), obligatorias: sin ellas, o si no puede
   bajar las llaves de Access, no arranca. `PORT` (por omisión 8080) y `ALLOWED_HOSTS` (separados por coma). **rmcp rechaza
   cualquier `Host` que no esté en la lista** (403), para protegerse del DNS rebinding: en el
   cluster lleva `mcp-poc.xplaya.com`.
@@ -35,7 +42,8 @@ pasa en `Cf-Access-Jwt-Assertion` (`src/acceso.rs`).
 Sin un JWT de Access, `/mcp` responde 401 (y `/healthz`, 200):
 
 ```bash
-PORT=5098 ACCESS_TEAM_DOMAIN=https://negrita.cloudflareaccess.com ACCESS_AUD=<aud> cargo run
+PORT=5098 ACCESS_TEAM_DOMAIN=https://negrita.cloudflareaccess.com ACCESS_AUD=<aud> \
+  CANAL_CLIENT_ID=<client-id> cargo run
 curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:5098/mcp   # 401
 ```
 

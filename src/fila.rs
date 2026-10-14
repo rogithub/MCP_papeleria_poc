@@ -9,12 +9,13 @@
 use std::collections::VecDeque;
 use std::time::Duration;
 
+use serde::Serialize;
 use tokio::sync::{Mutex, Notify};
 use tokio::time::{Instant, timeout_at};
 
 const PRESENCIA: Duration = Duration::from_secs(60);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Mensaje {
     /// El correo de quien habló, como lo dio Access.
     pub de: String,
@@ -52,8 +53,6 @@ impl Estado {
     }
 }
 
-// Lo que pide el canal (`recoger`, `responder`, `pedir_permiso`) lo usarán sus rutas en C2.
-#[allow(dead_code)]
 impl Fila {
     pub async fn prendida(&self) -> bool {
         self.estado.lock().await.prendida()

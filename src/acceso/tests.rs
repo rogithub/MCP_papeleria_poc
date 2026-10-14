@@ -17,10 +17,14 @@ const KID: &str = "llave-de-prueba";
 const EQUIPO: &str = "https://negrita.cloudflareaccess.com";
 const AUD: &str = "aud-de-la-aplicacion";
 const CORREO: &str = "dueno@example.com";
+const CANAL: &str = "id-del-canal.access";
 
 #[derive(Serialize)]
 struct TestClaims<'a> {
-    email: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    common_name: Option<&'a str>,
     aud: Vec<&'a str>,
     iss: &'a str,
     exp: u64,
@@ -28,10 +32,20 @@ struct TestClaims<'a> {
 
 fn claims() -> TestClaims<'static> {
     TestClaims {
-        email: CORREO,
+        email: Some(CORREO),
+        common_name: None,
         aud: vec![AUD],
         iss: EQUIPO,
         exp: get_current_timestamp() + 600,
+    }
+}
+
+/// Lo que manda Access cuando entra un service token: `common_name` y sin `email`.
+fn claims_del_service_token(client_id: &'static str) -> TestClaims<'static> {
+    TestClaims {
+        email: None,
+        common_name: Some(client_id),
+        ..claims()
     }
 }
 
@@ -47,10 +61,23 @@ fn access() -> Access {
 }
 
 #[tokio::test]
-async fn acepta_el_jwt_de_access_y_devuelve_el_correo() {
+async fn el_jwt_de_una_persona_trae_su_correo() {
     let token = sign(&claims(), LLAVE);
 
-    assert_eq!(access().verify(&token).await, Ok(CORREO.to_string()));
+    assert_eq!(
+        access().verify(&token).await,
+        Ok(Identidad::Persona(CORREO.into()))
+    );
+}
+
+#[tokio::test]
+async fn el_jwt_de_un_service_token_se_reconoce_como_canal() {
+    let token = sign(&claims_del_service_token(CANAL), LLAVE);
+
+    assert_eq!(
+        access().verify(&token).await,
+        Ok(Identidad::Canal(CANAL.into()))
+    );
 }
 
 #[tokio::test]
@@ -129,19 +156,37 @@ async fn rechaza_un_jwt_con_una_llave_que_no_conoce() {
 }
 
 fn app() -> Router {
-    let protected = Router::new()
+    let mcp = Router::new()
         .route("/mcp", get(|| async { "herramientas" }))
         .route(
             "/quien",
-            get(|axum::Extension(Correo(correo)): axum::Extension<Correo>| async { correo }),
+            get(
+                |axum::Extension(identidad): axum::Extension<Identidad>| async move {
+                    format!("{identidad:?}")
+                },
+            ),
         )
+        .layer(axum::middleware::from_fn(solo_personas));
+    let canal = Router::new()
+        .route("/canal/mensajes", get(|| async { "[]" }))
         .layer(axum::middleware::from_fn_with_state(
-            Arc::new(access()),
-            require_access,
+            Arc::<str>::from(CANAL),
+            solo_el_canal,
         ));
+    let protected = mcp.merge(canal).layer(axum::middleware::from_fn_with_state(
+        Arc::new(access()),
+        require_access,
+    ));
     Router::new()
         .route("/healthz", get(|| async { "ok" }))
         .merge(protected)
+}
+
+fn get_con(ruta: &str, claims: &TestClaims) -> Request<Body> {
+    Request::get(ruta)
+        .header(HEADER, sign(claims, LLAVE))
+        .body(Body::empty())
+        .unwrap()
 }
 
 async fn status(request: Request<Body>) -> StatusCode {
@@ -164,25 +209,50 @@ async fn mcp_sin_la_cabecera_de_access_responde_401() {
 
 #[tokio::test]
 async fn mcp_con_el_jwt_de_access_pasa() {
-    let request = Request::get("/mcp")
-        .header(HEADER, sign(&claims(), LLAVE))
-        .body(Body::empty())
-        .unwrap();
-
-    assert_eq!(status(request).await, StatusCode::OK);
+    assert_eq!(status(get_con("/mcp", &claims())).await, StatusCode::OK);
 }
 
 #[tokio::test]
 async fn el_correo_de_quien_entro_llega_a_las_herramientas() {
-    let request = Request::get("/quien")
-        .header(HEADER, sign(&claims(), LLAVE))
-        .body(Body::empty())
-        .unwrap();
-
-    let response = app().oneshot(request).await.unwrap();
+    let response = app().oneshot(get_con("/quien", &claims())).await.unwrap();
     let body = axum::body::to_bytes(response.into_body(), 1024)
         .await
         .unwrap();
 
-    assert_eq!(body, CORREO);
+    assert_eq!(body, format!("Persona(\"{CORREO}\")"));
+}
+
+#[tokio::test]
+async fn el_canal_no_puede_usar_las_herramientas_del_telefono() {
+    let canal = claims_del_service_token(CANAL);
+
+    assert_eq!(status(get_con("/mcp", &canal)).await, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn una_persona_no_puede_entrar_a_las_rutas_del_canal() {
+    assert_eq!(
+        status(get_con("/canal/mensajes", &claims())).await,
+        StatusCode::FORBIDDEN
+    );
+}
+
+#[tokio::test]
+async fn un_service_token_ajeno_no_entra_al_canal() {
+    let ajeno = claims_del_service_token("otro-token.access");
+
+    assert_eq!(
+        status(get_con("/canal/mensajes", &ajeno)).await,
+        StatusCode::FORBIDDEN
+    );
+}
+
+#[tokio::test]
+async fn el_canal_entra_a_sus_rutas() {
+    let canal = claims_del_service_token(CANAL);
+
+    assert_eq!(
+        status(get_con("/canal/mensajes", &canal)).await,
+        StatusCode::OK
+    );
 }
