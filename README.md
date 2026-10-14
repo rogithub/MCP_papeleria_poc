@@ -57,7 +57,23 @@ Las herramientas se prueban por el conector, desde claude.ai.
 2. En la app del teléfono, modo de voz: «¿Está viva la papelería?» y «Repite: hoy vendimos cien
    copias». Lo que se busca es que **lo diga en voz alta**.
 
-## Siguiente experimento
+## El canal en la computadora de la papelería
+
+`canal_papeleria` (`src/bin/canal_papeleria/`) es el MCP por stdio que arranca Claude Code: pregunta
+al relevo por los mensajes del teléfono, los mete a la sesión como `<channel source="telefono"
+de="correo">`, contesta con la herramienta `responder` y avisa al relevo las peticiones de permiso
+(nunca las aprueba). CI lo publica para Linux x86 como `canal-papeleria` en el release
+[`canal`](https://github.com/rogithub/MCP_papeleria_poc/releases/tag/canal).
+
+- Variables: `RELEVO_URL` (`https://mcp-poc.xplaya.com`) y `CANAL_CLIENT_ID` (el Client ID del
+  service token `canal-papeleria`).
+- El Client Secret, en `~/.config/canal-papeleria/secreto` con permisos `600` (o en el archivo que
+  diga `CANAL_SECRETO`): nunca en la configuración de Claude Code.
+- Se registra con `claude mcp add -s user … telefono -- ~/.local/bin/canal-papeleria`, con una
+  regla *allow* para `mcp__telefono__responder` (si no, la pantalla pide aprobar cada respuesta), y
+  Claude Code se arranca con `claude --dangerously-load-development-channels server:telefono`.
+
+
 
 [Control remoto por voz de Claude Code](docs/control-remoto-por-voz.md): hablarle desde el teléfono
 a la sesión de Claude Code de la papelería, con OAuth de Cloudflare Access y un canal de Claude Code.

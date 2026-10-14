@@ -3,7 +3,8 @@ FROM docker.io/library/rust:1.98.0-bookworm AS build
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
-RUN cargo build --release --locked
+# Solo el relevo: el canal (`canal_papeleria`) corre en la computadora de la papelería.
+RUN cargo build --release --locked --bin mcp-papeleria-poc
 
 FROM docker.io/library/debian:bookworm-slim
 # Certificados del sistema: el relevo baja las llaves de Cloudflare Access por HTTPS.

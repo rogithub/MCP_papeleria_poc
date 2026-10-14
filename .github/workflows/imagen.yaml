@@ -39,3 +39,28 @@ jobs:
             ghcr.io/rogithub/mcp_papeleria_poc:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # El canal corre en la computadora de la papelería (Debian 13): se publica como asset del release
+  # fijo «canal», que se reemplaza en cada push. El repo es público, así que se baja con curl.
+  canal:
+    runs-on: ubuntu-24.04  # glibc 2.39, menor que la de Debian 13
+    permissions:
+      contents: write
+
+    steps:
+      - name: Bajar el código
+        uses: actions/checkout@v4
+
+      - name: Compilar el canal
+        run: |
+          cargo build --release --locked --bin canal_papeleria
+          cp target/release/canal_papeleria canal-papeleria
+
+      - name: Publicar en el release «canal»
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view canal >/dev/null 2>&1 || \
+            gh release create canal --title canal --notes "El canal de Claude Code para la computadora de la papelería."
+          gh release upload canal canal-papeleria --clobber
+          gh release edit canal --notes "El canal de Claude Code para la computadora de la papelería. Compilado de ${{ github.sha }}."
