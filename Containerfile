@@ -6,6 +6,9 @@ COPY src ./src
 RUN cargo build --release --locked
 
 FROM docker.io/library/debian:bookworm-slim
+# Certificados del sistema: el relevo baja las llaves de Cloudflare Access por HTTPS.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /src/target/release/mcp-papeleria-poc /usr/local/bin/mcp-papeleria-poc
 # Usuario sin privilegios, numérico para que Kubernetes pueda exigir runAsNonRoot.
 USER 10001:10001

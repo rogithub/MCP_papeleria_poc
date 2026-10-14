@@ -9,6 +9,8 @@ publish = false
 axum = "0.8"
 chrono = "0.4"
 chrono-tz = "0.10"
+jsonwebtoken = { version = "11.1.0", default-features = false, features = ["aws_lc_rs", "use_pem"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "json"] }
 rmcp = { version = "3.5.1", features = ["server", "macros", "transport-streamable-http-server"] }
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
@@ -18,3 +20,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 [profile.release]
 strip = true
 lto = "thin"
+
+[dev-dependencies]
+serde_json = "1"
+tower = { version = "0.5", features = ["util"] }

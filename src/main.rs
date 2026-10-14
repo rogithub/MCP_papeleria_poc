@@ -1,5 +1,8 @@
 //! Prueba de vida de un conector MCP público (ver README.md). No toca ninguna base ni dato de la
-//! papelería: solo dice que está vivo y repite lo que le dicen.
+//! papelería: solo dice que está vivo y repite lo que le dicen. Solo responde a quien entró por
+//! Cloudflare Access (`acceso`).
+
+mod acceso;
 
 use std::sync::Arc;
 
@@ -43,6 +46,11 @@ impl Papeleria {
     }
 }
 
+fn required_env(name: &str) -> std::io::Result<String> {
+    std::env::var(name)
+        .map_err(|_| std::io::Error::other(format!("falta la variable de entorno {name}")))
+}
+
 fn alive_message(now: chrono::DateTime<Utc>) -> String {
     let hora = now.with_timezone(&ZONA).format("%H:%M");
     format!("Estoy vivo. Son las {hora} en la papelería. Te respondo desde el cluster purépecha.")
@@ -67,6 +75,16 @@ async fn main() -> std::io::Result<()> {
         .filter(|h| !h.is_empty())
         .collect();
 
+    // Sin las llaves de Access no tiene caso arrancar: todo /mcp respondería 401.
+    let access = Arc::new(
+        acceso::Access::new(
+            &required_env("ACCESS_TEAM_DOMAIN")?,
+            &required_env("ACCESS_AUD")?,
+        )
+        .await
+        .map_err(std::io::Error::other)?,
+    );
+
     // Sin sesiones y con respuestas JSON simples: nada de streams largos a través del túnel.
     let config = StreamableHttpServerConfig::default()
         .with_legacy_session_mode(false)
@@ -78,9 +96,17 @@ async fn main() -> std::io::Result<()> {
         config,
     );
 
+    let protected =
+        Router::new()
+            .nest_service("/mcp", mcp)
+            .layer(axum::middleware::from_fn_with_state(
+                access,
+                acceso::require_access,
+            ));
+    // /healthz queda fuera de Access: lo piden las sondas de k3s desde dentro del cluster.
     let app = Router::new()
         .route("/healthz", get(|| async { "ok" }))
-        .nest_service("/mcp", mcp);
+        .merge(protected);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
     tracing::info!(port, ?allowed_hosts, "escuchando");

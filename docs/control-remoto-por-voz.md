@@ -140,3 +140,28 @@ Lo que salió en el camino:
 - Probado por ssh, con `ssh -L 8787:localhost:8787` para ver la página desde otra computadora.
 - La respuesta fue larga, con listas y emojis: para la voz, las instrucciones del canal deben pedir
   respuestas cortas.
+
+### Paso B — Cloudflare Access como OAuth del conector (2026-10-14)
+
+**El login de Cloudflare funciona como conector de claude.ai, también en el modo de voz.** Al
+agregar el conector, claude.ai abrió el login de Access; con el código que llegó por correo quedó
+conectado, y en el modo de voz la prueba de vida contestó en voz alta.
+
+Cómo quedó en Cloudflare (equipo `negrita.cloudflareaccess.com`):
+- Aplicación *self-hosted* `mcp-poc` para `mcp-poc.xplaya.com`, sesión de `730h` (un mes).
+- Política reutilizable `solo rodrigo y dayana` (Allow por correo), ligada a la aplicación. En el
+  panel nuevo, crear la política no la liga: hay que elegirla en la aplicación y guardarla.
+- Managed OAuth encendido, con registro dinámico solo para
+  `https://claude.ai/api/mcp/auth_callback` y `https://claude.com/api/mcp/auth_callback`, y sesión
+  OAuth de `730h` (el panel la deja «igual que la aplicación» si no se pone explícita, y por la
+  API no aparece).
+- Login: solo el código por correo (one-time PIN), que ya venía encendido.
+- Sin login, `/mcp` responde 401 con `WWW-Authenticate` hacia los metadatos de OAuth de Access.
+
+Lo que salió en el camino:
+- Un conector que se agregó sin login queda marcado así en claude.ai: al encender Access, avisó que
+  el servidor ahora pide inicio de sesión. Se arregló quitándolo y agregándolo otra vez.
+- El MCP de Cloudflare conectado a Claude Code puede leer Access pero no crear aplicaciones (error
+  `1010`): se hizo en el panel.
+- El relevo valida el JWT de Access (`src/acceso.rs`): firma con las llaves del equipo, `aud`,
+  `iss` y vencimiento. Sin él, `/mcp` responde 401 aunque se llegue por el NodePort desde la LAN.
