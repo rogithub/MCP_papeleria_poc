@@ -165,3 +165,6 @@ Lo que salió en el camino:
   `1010`): se hizo en el panel.
 - El relevo valida el JWT de Access (`src/acceso.rs`): firma con las llaves del equipo, `aud`,
   `iss` y vencimiento. Sin él, `/mcp` responde 401 aunque se llegue por el NodePort desde la LAN.
+- Verificado en el cluster: por el NodePort, `/mcp` responde 401 sin pasar por Cloudflare; desde el
+  teléfono, el JWT que manda Access pasa la validación y el log dice `petición por Access` con el
+  correo de quien entró. La política tiene ahora tres correos.
