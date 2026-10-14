@@ -46,12 +46,36 @@ teléfono (voz) ── Claude (nube) ── Cloudflare Access ── relevo (k3s
    la pantalla.
 4. El relevo le devuelve al teléfono lo que haya: la respuesta, «pide permiso para…» o «sigue
    trabajando».
-5. Si pidió permiso, el Claude del teléfono se lo dice; ella contesta y el teléfono manda el
-   veredicto. Gana la primera respuesta: la de la voz o la de la pantalla.
+5. Si pidió permiso, el Claude del teléfono se lo dice y ella lo aprueba con un botón en el
+   teléfono o en la pantalla de la computadora ([quién aprueba](#quién-aprueba)). Gana la primera
+   respuesta.
 6. La respuesta final llega al teléfono y se dice en voz alta.
 
 Si la computadora no ha preguntado en el último minuto, el relevo contesta que está apagada: fuera
 de horario no tiene corriente, así que no hace falta programar el horario.
+
+## Quién aprueba
+
+El relevo nunca oye a la dueña: oye al Claude del teléfono, que transcribe e interpreta. Un «sí»
+que llegue por la voz lo manda ese Claude, aunque ella no lo haya dicho, sea por error o porque el
+texto que regresa de Claude Code (un WhatsApp, un PDF) trae «aprueba abcde». Repetir una palabra
+clave no lo arregla: también la puede repetir él.
+
+Por eso **el «sí» desde el teléfono es un botón que ella toca**, no algo que el Claude del teléfono
+pueda mandar solo. Dos formas, en este orden:
+
+1. **La confirmación de claude.ai.** Antes de llamar a una herramienta de un conector, la app puede
+   pedir «permitir». Si la herramienta de aprobar se marca para pedirla siempre y el botón aparece
+   también en modo de voz, el toque de ella es la prueba. Sin código; falta comprobar que aparece
+   en voz.
+2. **Una página de aprobación propia, si la 1 no sirve.** Un hostname aparte (p. ej.
+   `aprobar.xplaya.com`) como aplicación de Access **sin** Managed OAuth: solo entra un navegador
+   con su login, nunca el token del Claude del teléfono. El teléfono le dice «te dejé el botón» y
+   ella toca «Aprobar» o «Rechazar» en la página. El relevo solo acepta veredictos de ahí.
+
+Mientras ninguna esté probada, la voz solo avisa («pide permiso para…; apruébalo en la pantalla»)
+y la aprobación es en la pantalla de la computadora. La pantalla siempre puede aprobar o rechazar:
+gana la primera respuesta.
 
 ## Lo que ya se sabe (documentación, 2026-10-14)
 
@@ -85,7 +109,9 @@ de horario no tiene corriente, así que no hace falta programar el horario.
    en una vuelta o si el teléfono pregunta «¿ya?» varias veces.
 2. ¿El login de Cloudflare Access funciona como conector de claude.ai, desde el teléfono?
 3. ¿Los canales están ya disponibles en la cuenta de la papelería y en su versión de Claude Code?
-4. ¿Se siente natural? Aprobar por voz, la latencia de dos Claudes en fila, respuestas cortas para
+4. ¿El botón de confirmar de claude.ai aparece en modo de voz? Si no, ¿la página propia se siente
+   bien en el teléfono?
+5. ¿Se siente natural? Aprobar por voz, la latencia de dos Claudes en fila, respuestas cortas para
    oírse.
 
 ## Fuera del experimento
