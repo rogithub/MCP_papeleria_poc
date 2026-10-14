@@ -177,3 +177,42 @@ Lo que salió en el camino:
 - Verificado en el cluster: por el NodePort, `/mcp` responde 401 sin pasar por Cloudflare; desde el
   teléfono, el JWT que manda Access pasa la validación y el log dice `petición por Access` con el
   correo de quien entró. La política tiene ahora tres correos.
+
+### Paso C — el relevo en k3s (2026-10-14)
+
+**El relevo funciona de punta a punta, con la laptop haciendo de canal** (`curl` con el service
+token). Un mensaje dicho en el teléfono llegó al canal con el correo de quien habló; la respuesta
+que mandó el canal regresó al teléfono y se dijo en voz alta; una petición de permiso se avisó
+como «pide permiso…, se aprueba en la pantalla», sin que el Claude del teléfono intentara darlo.
+Con la computadora sin preguntar, el teléfono contestó «la computadora está apagada».
+
+Cómo quedó:
+- Herramientas del teléfono `mandar_mensaje` y `esperar_respuesta` (esperas de 20 s); rutas del
+  canal `GET /canal/mensajes` (espera de 25 s), `POST /canal/respuesta` y `POST /canal/permiso`.
+- Service token de Access `canal-papeleria` (cinco años) con una política *Service Auth* en la
+  misma aplicación `mcp-poc`: Managed OAuth y el service token conviven. El JWT del service token
+  no trae `email` sino `common_name` (el Client ID); el relevo solo deja entrar a `/canal` ese
+  Client ID (`CANAL_CLIENT_ID`, no es secreto) y a `/mcp` solo personas. El Client Secret no está
+  en el cluster.
+- Un log por llamada a herramienta: lo que dijo la persona, lo que se le contestó y cuánto tardó.
+
+Lo que salió (respuestas parciales a [lo que no se sabe](#lo-que-no-se-sabe-y-responde-el-experimento)):
+- **El modo de voz aguanta 20 s por llamada** (pregunta 1), y el Claude del teléfono encadenó
+  `esperar_respuesta` solo cuando le dijo «sigue trabajando». Del mensaje a la respuesta fueron unos
+  70 s, en tres llamadas, sin que la persona tuviera que preguntar.
+- **No pasa las palabras tal cual.** Se dijo «imprime el PDF de Juan, dos copias a color» y llegó
+  «Imprime dos copias del documento de Juan a color», aunque la descripción pide pasarlo con sus
+  palabras.
+- **Con una respuesta final en la mano, contesta de memoria.** Llegó un permiso después del «listo»
+  y a «¿ya terminó la computadora?» contestó que sí, sin llamar a ninguna herramienta (el log no
+  tiene ninguna llamada): el permiso se quedó en la fila. Con «pregúntale a la computadora si ya
+  terminó» sí llamó y avisó el permiso.
+- claude.ai no tomó las herramientas nuevas hasta que se le pidió ver las opciones del conector.
+
+Lo que salió en el camino:
+- Si el pod arranca antes de que CI publique la imagen (p. ej. ArgoCD sincroniza el manifiesto),
+  queda con la imagen anterior: después de cada push hace falta el `rollout restart`.
+- El secreto del service token se muestra una sola vez; si no se guardó, se rota en el panel y el
+  Client ID no cambia.
+- En la zsh de la laptop, `url-quote-magic` escapa el `;` pegado a una URL (`mensajes\;`): en los
+  comandos, la URL va antes de las cabeceras.
