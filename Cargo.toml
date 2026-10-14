@@ -1,0 +1,20 @@
+[package]
+name = "mcp-papeleria-poc"
+version = "0.1.0"
+edition = "2024"
+description = "Prueba de vida: un MCP público para ver si Claude, en modo de voz desde el teléfono, puede usar un conector nuestro"
+publish = false
+
+[dependencies]
+axum = "0.8"
+chrono = "0.4"
+chrono-tz = "0.10"
+rmcp = { version = "3.5.1", features = ["server", "macros", "transport-streamable-http-server"] }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+[profile.release]
+strip = true
+lto = "thin"
