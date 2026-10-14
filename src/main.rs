@@ -35,7 +35,7 @@ struct Papeleria {
 
 #[derive(Deserialize, JsonSchema)]
 struct MensajeParams {
-    /// Lo que dijo la persona, con sus palabras.
+    /// Lo que dijo la persona, textual, palabra por palabra.
     texto: String,
 }
 
@@ -54,8 +54,8 @@ impl Papeleria {
     #[tool(
         description = "Le pasa un mensaje a la sesión de Claude Code abierta en la computadora \
                        de la papelería, la que tiene las impresoras, los pedidos y los archivos. \
-                       Pasa lo que dijo la persona, con sus palabras, sin resolverlo tú ni \
-                       agregarle nada. Espera hasta 20 segundos y devuelve lo que contestó la \
+                       Pasa lo que dijo la persona textual, palabra por palabra, sin resumirlo, \
+                       resolverlo tú ni agregarle nada. Espera hasta 20 segundos y devuelve lo que contestó la \
                        computadora: dilo en voz alta, corto. Si dice que sigue trabajando, usa \
                        esperar_respuesta. Si pide permiso, díselo a la persona: el permiso se da \
                        en la pantalla de la computadora, tú no puedes darlo."
@@ -82,7 +82,10 @@ impl Papeleria {
     #[tool(
         description = "Espera hasta 20 segundos a que la computadora de la papelería conteste lo \
                        último que se le mandó; no manda nada nuevo. Úsala cuando la respuesta \
-                       diga que sigue trabajando. Lo que devuelva, dilo en voz alta, corto."
+                       diga que sigue trabajando, y cada vez que la persona pregunte por la \
+                       computadora o por lo que está haciendo: no contestes de memoria, aunque \
+                       ya te haya dicho que terminó, porque después puede pedir permiso o decir \
+                       algo más. Lo que devuelva, dilo en voz alta, corto."
     )]
     async fn esperar_respuesta(&self) -> String {
         let inicio = std::time::Instant::now();
