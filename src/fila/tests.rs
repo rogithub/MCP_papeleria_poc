@@ -132,7 +132,8 @@ async fn una_peticion_de_permiso_se_avisa_para_aprobar_en_pantalla() {
     assert_eq!(
         para_decir(&salida),
         "Pide permiso para usar Bash: imprimir juan.pdf. Se aprueba o se rechaza en la \
-         pantalla de la computadora."
+         pantalla de la computadora. Sigue trabajando: en cuanto se apruebe, pregunta otra vez \
+         con esperar_respuesta para saber cómo terminó."
     );
 }
 

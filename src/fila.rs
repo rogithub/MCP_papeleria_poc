@@ -155,7 +155,8 @@ pub fn para_decir(salida: &[Salida]) -> String {
                 ..
             } => format!(
                 "Pide permiso para usar {herramienta}: {descripcion}. Se aprueba o se rechaza \
-                 en la pantalla de la computadora."
+                 en la pantalla de la computadora. Sigue trabajando: en cuanto se apruebe, \
+                 pregunta otra vez con esperar_respuesta para saber cómo terminó."
             ),
         })
         .collect::<Vec<_>>()
