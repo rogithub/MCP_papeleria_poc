@@ -221,3 +221,49 @@ Lo que salió en el camino:
   Client ID no cambia.
 - En la zsh de la laptop, `url-quote-magic` escapa el `;` pegado a una URL (`mensajes\;`): en los
   comandos, la URL va antes de las cabeceras.
+
+### Paso D — el canal en Rust (2026-10-15)
+
+**Funciona con la sesión real de Claude Code de la papelería.** Una pregunta dicha en el teléfono
+(«¿qué archivos hay en la carpeta de inicio?») entró a la sesión de `dayana`, Claude Code contestó
+con `responder` y el teléfono la dijo en voz alta: 15.6 s, en una sola llamada. Con permisos: «borra
+`prueba-canal.txt`» pidió permiso para Bash en la terminal, se aprobó ahí, y el teléfono dijo el aviso
+y el «listo» juntos a los 10.6 s. El aviso de permiso llega al relevo 4–5 s después del mensaje.
+
+Cómo quedó:
+- `canal-papeleria` (Rust, rmcp, stdio): declara `claude/channel` y `claude/channel/permission`,
+  mete cada mensaje como `<channel source="telefono" de="correo">`, contesta con `responder` y pasa
+  las peticiones de permiso al relevo; nunca manda veredictos. Ofrece hasta la revisión
+  `2025-11-25` y Claude Code la negocia sin `MCP_PROTOCOL_NEGOTIATION=legacy`.
+- CI lo publica en el release `canal`; en la PC va en `~/.local/bin/`, el secreto en
+  `~/.config/canal-papeleria/secreto` (600), registrado con `claude mcp add -s user`, y se abre con
+  `claude-telefono` (pone `CANAL_TELEFONO=1` y la bandera de canales). Una regla *allow* de usuario
+  para `mcp__telefono__responder`.
+
+Lo que salió:
+- **Un MCP de usuario corre en todas las sesiones, y en las que no lo registran como canal Claude
+  Code tira sus notificaciones sin aviso.** Con un `claude` normal abierto, había dos canales
+  preguntando al relevo y la mitad de los mensajes se perdían en esa sesión. `--mcp-config` no sirve
+  para separarlo: la bandera de canales no ve esos servidores («no MCP server configured with that
+  name»). Ahora el canal solo pregunta con `CANAL_TELEFONO=1`; en las demás sesiones se queda quieto
+  (comprobado: dos procesos, una sola serie de peticiones en el relevo).
+- **El Claude del teléfono no vuelve a preguntar después de un aviso de permiso**, aunque el aviso se
+  lo pida: lo dice y termina su turno, y sin que la persona hable ya no llama herramientas. Por eso
+  un permiso ya no corta la espera de 20 s: si se aprueba a tiempo, el aviso y la respuesta llegan
+  juntos; si no, el aviso llega al final de la espera.
+- **Respuestas corridas una vuelta.** Una respuesta sobrante (la sesión llamó dos veces a
+  `responder`) se entregó como la del mensaje siguiente. Ahora un mensaje nuevo descarta lo que nadie
+  leyó (ver [límites conocidos](#límites-conocidos)).
+- Cuando un mensaje se perdió, el teléfono siguió llamando a `esperar_respuesta` aunque se le repitió
+  la orden, en lugar de mandarla otra vez; con una conversación nueva sí la mandó.
+- Con la descripción nueva, el teléfono pasó las órdenes casi textuales («Borra el archivo
+  prueba-canal.txt de la carpeta de inicio.»).
+- `responder` pide permiso la primera vez; «no volver a preguntar» lo guarda solo para la carpeta.
+  Se agregó en `/permissions` como regla de usuario.
+
+Lo que salió en el camino:
+- Reemplazar el binario mientras una sesión lo usa da «Text file busy»: se baja con otro nombre y se
+  mueve con `mv -f`.
+- En la terminal de la PC, las líneas largas pegadas se parten y los heredocs se rompen: los pasos
+  van en comandos cortos, con la URL base en una variable.
+- Los logs del relevo se leen directo en Loki (`loki-push`, NodePort 30523), sin `kubectl logs`.
