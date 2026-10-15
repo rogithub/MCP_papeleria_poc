@@ -175,7 +175,7 @@ pub async fn require_access(
     };
     match result {
         Ok(identidad) => {
-            tracing::info!(?identidad, "petición por Access");
+            tracing::info!(?identidad, ruta = %request.uri().path(), "petición por Access");
             request.extensions_mut().insert(identidad);
             next.run(request).await
         }

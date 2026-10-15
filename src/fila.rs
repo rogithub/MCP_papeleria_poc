@@ -60,10 +60,16 @@ impl Fila {
 
     /// Mete un mensaje para la sesión. Con la computadora apagada no se guarda: nadie lo
     /// recogería, y llegaría horas después, fuera de contexto.
+    ///
+    /// Lo que la sesión devolvió y el teléfono nunca leyó se descarta: si no, el teléfono lo
+    /// tomaría como la respuesta a este mensaje y las respuestas quedarían corridas una vuelta.
     pub async fn mandar(&self, mensaje: Mensaje) -> bool {
         let mut estado = self.estado.lock().await;
         if !estado.prendida() {
             return false;
+        }
+        for salida in estado.salida.drain(..) {
+            tracing::warn!(?salida, "descartado: nadie lo leyó antes del mensaje nuevo");
         }
         estado.entrada.push_back(mensaje);
         self.hay_entrada.notify_one();

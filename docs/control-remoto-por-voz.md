@@ -62,6 +62,11 @@ de horario no tiene corriente, así que no hace falta programar el horario.
   haya en la fila cuando pregunta, sea la respuesta suya o la de la otra persona. Para el
   experimento está bien: se prueba con una persona a la vez.
 - **La fila está en memoria.** Si el pod se reinicia, lo pendiente se pierde.
+- **Las respuestas no van ligadas a su mensaje.** El teléfono recibe lo que haya en la salida. Para
+  que una respuesta sobrante (p. ej. la sesión llamó dos veces a `responder`) no se tome como la del
+  mensaje siguiente, al mandar un mensaje nuevo se descarta lo que nadie leyó (queda en el log como
+  `descartado`); un aviso de permiso descartado sigue en la pantalla. Lo correcto, si esto pasa de
+  experimento, es un id por mensaje que el canal ponga en `meta` y `responder` devuelva.
 
 ## Quién aprueba
 

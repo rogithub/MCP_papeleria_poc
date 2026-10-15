@@ -147,3 +147,27 @@ async fn lo_acumulado_se_entrega_junto_y_una_sola_vez() {
     assert_eq!(para_decir(&salida), "Ya lo abrí.\nYa lo mandé a imprimir.");
     assert!(fila.esperar_salida(Duration::ZERO).await.is_empty());
 }
+
+#[tokio::test(start_paused = true)]
+async fn un_mensaje_nuevo_descarta_lo_que_nadie_leyo() {
+    let fila = prendida().await;
+    fila.responder("Son las 7:03.".into()).await;
+
+    fila.mandar(mensaje("crea el archivo")).await;
+
+    assert!(fila.esperar_salida(Duration::ZERO).await.is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn lo_que_llega_despues_del_mensaje_si_se_entrega() {
+    let fila = prendida().await;
+    fila.responder("Son las 7:03.".into()).await;
+    fila.mandar(mensaje("crea el archivo")).await;
+
+    fila.responder("Listo, creé el archivo.".into()).await;
+
+    assert_eq!(
+        fila.esperar_salida(Duration::ZERO).await,
+        vec![Salida::Respuesta("Listo, creé el archivo.".into())]
+    );
+}
