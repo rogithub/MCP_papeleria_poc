@@ -101,12 +101,25 @@ impl Fila {
     }
 
     /// Lo que pide el teléfono: lo que la sesión haya devuelto desde la última vez, esperando
-    /// hasta `espera` si todavía no hay nada.
+    /// hasta `espera` a que llegue una respuesta.
+    ///
+    /// Un permiso no corta la espera: el teléfono lo diría y terminaría su turno, y ya no
+    /// volvería a preguntar por la respuesta. Si se aprueba dentro del plazo, todo llega junto;
+    /// si no, el permiso se entrega al final del plazo.
     pub async fn esperar_salida(&self, espera: Duration) -> Vec<Salida> {
-        esperar(&self.estado, &self.hay_salida, espera, |e| {
-            std::mem::take(&mut e.salida)
+        let con_respuesta = esperar(&self.estado, &self.hay_salida, espera, |e| {
+            let hay_respuesta = e.salida.iter().any(|s| matches!(s, Salida::Respuesta(_)));
+            if hay_respuesta {
+                std::mem::take(&mut e.salida)
+            } else {
+                Vec::new()
+            }
         })
-        .await
+        .await;
+        if !con_respuesta.is_empty() {
+            return con_respuesta;
+        }
+        std::mem::take(&mut self.estado.lock().await.salida)
     }
 
     async fn salir(&self, salida: Salida) {

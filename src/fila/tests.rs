@@ -172,3 +172,38 @@ async fn lo_que_llega_despues_del_mensaje_si_se_entrega() {
         vec![Salida::Respuesta("Listo, creé el archivo.".into())]
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn un_permiso_no_corta_la_espera_si_llega_la_respuesta() {
+    let fila = Arc::new(prendida().await);
+    let telefono = tokio::spawn({
+        let fila = fila.clone();
+        async move { fila.esperar_salida(ESPERA).await }
+    });
+    advance(Duration::from_secs(4)).await;
+    fila.pedir_permiso("abcde".into(), "Write".into(), "crear el archivo".into())
+        .await;
+    advance(Duration::from_secs(10)).await;
+
+    fila.responder("Listo, creé el archivo.".into()).await;
+
+    assert_eq!(
+        para_decir(&telefono.await.unwrap()),
+        "Pide permiso para usar Write: crear el archivo. Se aprueba o se rechaza en la pantalla \
+         de la computadora. Sigue trabajando: en cuanto se apruebe, pregunta otra vez con \
+         esperar_respuesta para saber cómo terminó.\nListo, creé el archivo."
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn sin_respuesta_el_permiso_se_entrega_al_final_de_la_espera() {
+    let fila = prendida().await;
+    fila.pedir_permiso("abcde".into(), "Write".into(), "crear el archivo".into())
+        .await;
+    let inicio = Instant::now();
+
+    let salida = fila.esperar_salida(ESPERA).await;
+
+    assert_eq!(inicio.elapsed(), ESPERA);
+    assert!(matches!(salida[..], [Salida::Permiso { .. }]));
+}
