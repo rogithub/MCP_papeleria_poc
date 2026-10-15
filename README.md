@@ -69,11 +69,11 @@ de="correo">`, contesta con la herramienta `responder` y avisa al relevo las pet
   service token `canal-papeleria`).
 - El Client Secret, en `~/.config/canal-papeleria/secreto` con permisos `600` (o en el archivo que
   diga `CANAL_SECRETO`): nunca en la configuración de Claude Code.
-- **No se registra con `claude mcp add`**: así cualquier `claude` lo arrancaría, recogería los
-  mensajes del teléfono y Claude Code los tiraría sin registrar el canal. Solo lo carga
-  [`canal/claude-telefono`](canal/claude-telefono), que abre Claude Code con
-  [`canal/telefono.mcp.json`](canal/telefono.mcp.json) (`--mcp-config`) y la bandera de canales.
-  Ambos van en `~/.local/bin/` y `~/.config/canal-papeleria/` de `dayana`.
+- Se registra con `claude mcp add -s user … telefono -- ~/.local/bin/canal-papeleria`, así que
+  cualquier `claude` lo arranca, pero **solo pregunta al relevo con `CANAL_TELEFONO=1`**: en una
+  sesión sin la bandera de canales, Claude Code tiraría los mensajes que recogiera. Esa variable y la
+  bandera las pone [`canal/claude-telefono`](canal/claude-telefono), en `~/.local/bin/` de
+  `dayana`. (`--mcp-config` no sirve: la bandera de canales no ve esos servidores.)
 - Una regla *allow* para `mcp__telefono__responder` en la configuración de usuario (`/permissions`):
   si no, la pantalla pide aprobar cada respuesta.
 

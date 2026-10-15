@@ -159,6 +159,13 @@ async fn preguntar(peer: Peer<RoleServer>, relevo: Arc<Relevo>) {
     }
 }
 
+/// Claude Code arranca el canal en cualquier sesión de la computadora, pero solo la que abre
+/// `claude-telefono` lo registra como canal; en las demás, los mensajes que recogiera se tirarían
+/// sin aviso. Por eso solo pregunta al relevo si el lanzador puso `CANAL_TELEFONO=1`.
+fn activo(canal_telefono: Option<&str>) -> bool {
+    canal_telefono == Some("1")
+}
+
 fn variable(nombre: &str) -> std::io::Result<String> {
     std::env::var(nombre)
         .map_err(|_| std::io::Error::other(format!("falta la variable de entorno {nombre}")))
@@ -193,7 +200,12 @@ async fn main() -> std::io::Result<()> {
     .serve(rmcp::transport::stdio())
     .await
     .map_err(std::io::Error::other)?;
-    tokio::spawn(preguntar(servicio.peer().clone(), relevo));
+    if activo(std::env::var("CANAL_TELEFONO").ok().as_deref()) {
+        tracing::info!("activo: pregunta al relevo");
+        tokio::spawn(preguntar(servicio.peer().clone(), relevo));
+    } else {
+        tracing::info!("quieto: esta sesión no se abrió con claude-telefono");
+    }
     servicio.waiting().await.map_err(std::io::Error::other)?;
     Ok(())
 }

@@ -1,8 +1,5 @@
 #!/bin/sh
-# Abre Claude Code con el canal del teléfono. Solo esta sesión carga el canal: si estuviera en la
-# configuración de usuario, cualquier `claude` lo arrancaría y se robaría los mensajes del teléfono
-# sin registrarlos (ver docs/control-remoto-por-voz.md, paso D).
-exec claude \
-  --mcp-config "$HOME/.config/canal-papeleria/telefono.mcp.json" \
-  --dangerously-load-development-channels server:telefono \
-  "$@"
+# Abre Claude Code con el canal del teléfono. El canal está en la configuración de usuario, así que
+# cualquier `claude` lo arranca; solo pregunta al relevo con CANAL_TELEFONO=1, y solo esta sesión
+# lo registra como canal (ver docs/control-remoto-por-voz.md, paso D).
+CANAL_TELEFONO=1 exec claude --dangerously-load-development-channels server:telefono "$@"

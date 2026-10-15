@@ -156,3 +156,10 @@ async fn otra_notificacion_no_se_pasa_al_relevo() {
 
     assert!(recibido.lock().await.is_empty());
 }
+
+#[test]
+fn solo_pregunta_si_lo_abrio_claude_telefono() {
+    assert!(activo(Some("1")));
+    assert!(!activo(None));
+    assert!(!activo(Some("")));
+}
